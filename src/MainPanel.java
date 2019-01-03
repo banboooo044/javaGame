@@ -4,7 +4,7 @@ import java.awt.event.*;
 import java.util.Iterator;
 import javax.swing.*;
 
-public class MainPanel extends JPanel implements MouseListener ,KeyListener {
+public class MainPanel extends JPanel implements MouseListener ,KeyListener , Runnable {
 
     /** マスの大きさ(pixel) */
     private static final int GS = 80;
@@ -59,11 +59,18 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private int verticleSlide = 0;
     private int horizonSlided = 0;
 
+    private double whiteTimer = 500;
+    private double blackTimer = 500;
+    private double whiteStartTime = 0.0;
+    private double blackStartTime = 0.0;
+    private boolean timerChange;
 
 
     private AI ai;
 
     private InfoPanel infoPanel;
+
+    private Thread timer;
 
 
     public MainPanel(InfoPanel infoPanel) {
@@ -85,6 +92,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
         // メニュー画面を表示
         gameState = START;
+
+        timer = new Thread(this);
+        timer.start();
     }
 
     public void paintComponent(Graphics g) {
@@ -122,7 +132,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 drawTextCentering(g, "DRAW");
                 break;
         }
-
     }
 
     public void mouseClicked(MouseEvent e) {
@@ -181,6 +190,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
         // 最初は黒のターンから開始
         isWhiteTurn = false;
+        timerChange = true;
         putNumber = 0;
     }
 
@@ -307,14 +317,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
 
     public void reverse(Undo undo, boolean tryAndError) {
-
         for (int i = 0; i < 8 ; i ++) {
             if (okPutDown[i]) {
                 reverse(undo, dx[i],dy[i],tryAndError);
             }
         }
     }
-
 
     private void reverse(Undo undo, int vecX, int vecY, boolean tryAndError) {
         int putStone;
@@ -326,7 +334,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         } else {
             putStone = BLACK_STONE;
         }
-
 
         x = (x + vecX + MASU_NUM) % MASU_NUM;
         y = (y + vecY + MASU_NUM) % MASU_NUM;
@@ -356,12 +363,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     public void nextTurn() {
         isWhiteTurn = !isWhiteTurn;
+        timerChange = true;
     }
 
 
     public int countCanPutDownStone() {
         int count = 0;
-        
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
             for (int x = 0; x < MainPanel.MASU_NUM; x++) {
                 if (canPutDown(x, y)) {
@@ -369,7 +376,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 }
             }
         }
-        
         return count;
     }
 
@@ -437,7 +443,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         return new Point((p.x - horizonSlided + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
     }
 
-
     public int getBoard(int x, int y) {
         return board[y][x];
     }
@@ -454,11 +459,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     @Override
     public void mouseReleased(MouseEvent e) {
     }
-
     @Override
     public void keyTyped(KeyEvent keyEvent) {
     }
-
     @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
@@ -479,8 +482,43 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         repaint();
 
     }
-
     @Override
     public void keyReleased(KeyEvent keyEvent) {
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            if (gameState == PLAY ) {
+                if (timerChange) {
+                    timerChange = false;
+                    if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
+                    else blackStartTime = System.currentTimeMillis() / 1000;
+                }
+                double curTime = System.currentTimeMillis() / 1000;
+                if (isWhiteTurn) {
+                    whiteTimer -= (curTime - whiteStartTime);
+                    infoPanel.setWhiteTime(whiteTimer);
+                    whiteStartTime = curTime;
+                    if (whiteTimer < 0) gameState = YOU_WIN;
+                } else {
+                    blackTimer -= (curTime - blackStartTime);
+                    infoPanel.setBlackTime(blackTimer);
+                    blackStartTime = curTime;
+                    if (blackTimer < 0) gameState = YOU_LOSE;
+                }
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            repaint();
+        }
+    }
+
+    @Override
+    public void update(Graphics g) {
+        paint(g);
     }
 }

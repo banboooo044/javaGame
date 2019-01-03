@@ -9,6 +9,12 @@ public class InfoPanel extends JPanel {
     /** 白の石の数 */
     private JLabel whiteLabel;
 
+    /** 黒側のタイマー */
+    private JLabel blackTime;
+
+    /** 白側のタイマー */
+    private JLabel whiteTime;
+
     /**
      * BLACK : 0 , WHITE : 0 でラベルを初期化.
      */
@@ -19,6 +25,12 @@ public class InfoPanel extends JPanel {
         add(new JLabel("WHITE:"));
         whiteLabel = new JLabel("0");
         add(whiteLabel);
+        add(new JLabel("残り時間(黒):"));
+        blackTime = new JLabel("500");
+        add(blackTime);
+        add(new JLabel("残り時間(白):"));
+        whiteTime = new JLabel("500");
+        add(whiteTime);
     }
 
     /**
@@ -35,5 +47,13 @@ public class InfoPanel extends JPanel {
      */
     public void setWhiteLabel(int count) {
         whiteLabel.setText(count + "");
+    }
+
+    public void setBlackTime(double time) {
+        blackTime.setText(time + "");
+    }
+
+    public void setWhiteTime(double time) {
+        whiteTime.setText(time + "");
     }
 }
