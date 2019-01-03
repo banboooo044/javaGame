@@ -1,9 +1,10 @@
 
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Iterator;
 import javax.swing.*;
 
-public class MainPanel extends JPanel implements MouseListener {
+public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     /** マスの大きさ(pixel) */
     private static final int GS = 80;
@@ -49,11 +50,14 @@ public class MainPanel extends JPanel implements MouseListener {
     /** 盤面 */
     private int[][] board = new int[MASU_NUM][MASU_NUM];
 
-    private boolean[] okPutDown = { false,false,false,false,false,false,false,false};
+    private boolean[] okPutDown = { false,false,false,false,false,false,false,false };
 
     private boolean isWhiteTurn;
 
     private int putNumber;
+
+    private int verticleSlide = 0;
+    private int horizonSlided = 0;
 
 
 
@@ -66,6 +70,8 @@ public class MainPanel extends JPanel implements MouseListener {
         // パネルのサイズを指定
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addMouseListener(this);
+        setFocusable(true);
+        addKeyListener(this);
 
         // 石の数の結果を表示するクラスのオブジェクト
         this.infoPanel = infoPanel;
@@ -75,6 +81,7 @@ public class MainPanel extends JPanel implements MouseListener {
 
         // AIの初期化
         ai = new AI(this);
+
 
         // メニュー画面を表示
         gameState = START;
@@ -126,9 +133,9 @@ public class MainPanel extends JPanel implements MouseListener {
                 break;
             case PLAY :
                 // クリック場所(マス目)を取得
-                int x = e.getX() / GS;
-                int y = e.getY() / GS;
-
+                Point click = clickPlaceToRotatePlace(new Point(e.getX() / GS,e.getY() / GS));
+                int x = click.x;
+                int y = click.y;
                 // クリックした(x,y)で石を取ることができるか.
                 if (canPutDown(x, y)) { // 石を取れるので石を置く
 
@@ -172,7 +179,7 @@ public class MainPanel extends JPanel implements MouseListener {
         board[3][3] = board[4][4] = WHITE_STONE;
         board[3][4] = board[4][3] = BLACK_STONE;
 
-        /** 最初は黒のターンから開始 */
+        // 最初は黒のターンから開始
         isWhiteTurn = false;
         putNumber = 0;
     }
@@ -193,6 +200,9 @@ public class MainPanel extends JPanel implements MouseListener {
     private void drawStone(Graphics g) {
         for (int y = 0; y < MASU_NUM; y++) {
             for (int x = 0; x < MASU_NUM; x++) {
+                Point clickPoint = rotatePlaceToclickPlace(new Point(x,y));
+                int newX = clickPoint.x;
+                int newY = clickPoint.y;
                 if (board[y][x] == BLANK) {
                     continue;
                 } else if (board[y][x] == BLACK_STONE) {
@@ -200,7 +210,7 @@ public class MainPanel extends JPanel implements MouseListener {
                 } else {
                     g.setColor(Color.WHITE);
                 }
-                g.fillOval(x * GS + 3, y * GS + 3, GS - 6, GS - 6);
+                g.fillOval(newX * GS + 3, newY * GS + 3, GS - 6, GS - 6);
             }
         }
     }
@@ -271,11 +281,8 @@ public class MainPanel extends JPanel implements MouseListener {
             putStone = BLACK_STONE;
         }
 
-        x += vecX;
-        y += vecY;
-
-        if (x < 0 || x >= MASU_NUM || y < 0 || y >= MASU_NUM)
-            return false;
+        x = (x + vecX + MASU_NUM) % MASU_NUM;
+        y = (y + vecY + MASU_NUM) % MASU_NUM;
 
         if (board[y][x] == putStone)
             return false;
@@ -283,23 +290,19 @@ public class MainPanel extends JPanel implements MouseListener {
         if (board[y][x] == BLANK)
             return false;
 
+        x = (x + vecX + MASU_NUM) % MASU_NUM;
+        y = (y + vecY + MASU_NUM) % MASU_NUM;
 
-        x += vecX;
-        y += vecY;
-
-        while (x >= 0 && x < MASU_NUM && y >= 0 && y < MASU_NUM) {
-
+        while (true) {
             if (board[y][x] == BLANK)
                 return false;
 
             if (board[y][x] == putStone) {
                 return true;
             }
-            x += vecX;
-            y += vecY;
+            x = (x + vecX + MASU_NUM) % MASU_NUM;
+            y = (y + vecY + MASU_NUM) % MASU_NUM;
         }
-
-        return false;
     }
 
 
@@ -310,25 +313,6 @@ public class MainPanel extends JPanel implements MouseListener {
                 reverse(undo, dx[i],dy[i],tryAndError);
             }
         }
-
-        /*
-        if (canPutDown(undo.x, undo.y, 1, 0))
-            reverse(undo, 1, 0, tryAndError);
-        if (canPutDown(undo.x, undo.y, 0, 1))
-            reverse(undo, 0, 1, tryAndError);
-        if (canPutDown(undo.x, undo.y, -1, 0))
-            reverse(undo, -1, 0, tryAndError);
-        if (canPutDown(undo.x, undo.y, 0, -1))
-            reverse(undo, 0, -1, tryAndError);
-        if (canPutDown(undo.x, undo.y, 1, 1))
-            reverse(undo, 1, 1, tryAndError);
-        if (canPutDown(undo.x, undo.y, -1, -1))
-            reverse(undo, -1, -1, tryAndError);
-        if (canPutDown(undo.x, undo.y, 1, -1))
-            reverse(undo, 1, -1, tryAndError);
-        if (canPutDown(undo.x, undo.y, -1, 1))
-            reverse(undo, -1, 1, tryAndError);
-        */
     }
 
 
@@ -344,38 +328,28 @@ public class MainPanel extends JPanel implements MouseListener {
         }
 
 
-        x += vecX;
-        y += vecY;
+        x = (x + vecX + MASU_NUM) % MASU_NUM;
+        y = (y + vecY + MASU_NUM) % MASU_NUM;
         while (board[y][x] != putStone) {
 
             board[y][x] = putStone;
-
-            undo.pos[undo.count++] = new Point(x, y);
+            (undo.pos).push(new Point(x, y));
             if (!tryAndError) {
-
                 update(getGraphics());
-
                 sleep();
             }
-            x += vecX;
-            y += vecY;
+            x = (x + vecX + MASU_NUM) % MASU_NUM;
+            y = (y + vecY + MASU_NUM) % MASU_NUM;
         }
     }
 
     public void undoBoard(Undo undo) {
-        int c = 0;
-
-        while (undo.pos[c] != null) {
-
-            int x = undo.pos[c].x;
-            int y = undo.pos[c].y;
-
-            board[y][x] *= -1;
-            c++;
+        Iterator<Point> iter = (undo.pos).iterator();
+        while (iter.hasNext()) {
+            Point cur = iter.next();
+            board[cur.y][cur.x] *= -1;
         }
-
         board[undo.y][undo.x] = BLANK;
-
         nextTurn();
     }
 
@@ -456,20 +430,57 @@ public class MainPanel extends JPanel implements MouseListener {
         return counter;
     }
 
+    private Point clickPlaceToRotatePlace(Point p) {
+        return new Point((p.x + horizonSlided)%MASU_NUM,(p.y + verticleSlide)%MASU_NUM);
+    }
+    private Point rotatePlaceToclickPlace(Point p) {
+        return new Point((p.x - horizonSlided + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
+    }
+
 
     public int getBoard(int x, int y) {
         return board[y][x];
     }
-    
+
+    @Override
     public void mousePressed(MouseEvent e) {
     }
-
+    @Override
     public void mouseEntered(MouseEvent e) {
     }
-
+    @Override
     public void mouseExited(MouseEvent e) {
     }
-
+    @Override
     public void mouseReleased(MouseEvent e) {
+    }
+
+    @Override
+    public void keyTyped(KeyEvent keyEvent) {
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        int key = e.getKeyCode();
+        switch (key) {
+            case KeyEvent.VK_UP:
+                verticleSlide = (verticleSlide + 1 + MASU_NUM) % MASU_NUM;
+                break;
+            case KeyEvent.VK_DOWN :
+                verticleSlide = (verticleSlide - 1 + MASU_NUM) % MASU_NUM;
+                break;
+            case KeyEvent.VK_LEFT:
+                horizonSlided = (horizonSlided + 1 + MASU_NUM) % MASU_NUM;
+                break;
+            case KeyEvent.VK_RIGHT:
+                horizonSlided = (horizonSlided - 1 + MASU_NUM) % MASU_NUM;
+                break;
+        }
+        repaint();
+
+    }
+
+    @Override
+    public void keyReleased(KeyEvent keyEvent) {
     }
 }

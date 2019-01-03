@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicArrowButton;
 
 /** 石の数の結果を表示する */
 public class InfoPanel extends JPanel {
