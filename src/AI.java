@@ -1,4 +1,3 @@
-
 public class AI {
 
     private static final int SEARCH_LEVEL = 7;
@@ -27,18 +26,15 @@ public class AI {
         int temp = alphaBeta(true, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
         
 
-        int x = temp % MainPanel.MASU;
-        int y = temp / MainPanel.MASU;
+        int x = temp % MainPanel.MASU_NUM;
+        int y = temp / MainPanel.MASU_NUM;
 
         Undo undo = new Undo(x, y);
-
+        panel.canPutDown(x,y);
         panel.putDownStone(x, y, false);
         panel.reverse(undo, false);
-        // �I�����������ׂ�
         if (panel.endGame()) return;
-        // ��Ԃ�ς���
         panel.nextTurn();
-        // �v���C���[���p�X�̏ꍇ�͂������
         if (panel.countCanPutDownStone() == 0) {
             System.out.println("Player PASS!");
             panel.nextTurn();
@@ -75,8 +71,8 @@ public class AI {
         }
         
 
-        for (int y = 0; y < MainPanel.MASU; y++) {
-            for (int x = 0; x < MainPanel.MASU; x++) {
+        for (int y = 0; y < MainPanel.MASU_NUM; y++) {
+            for (int x = 0; x < MainPanel.MASU_NUM; x++) {
                 if (panel.canPutDown(x, y)) {
                     Undo undo = new Undo(x, y);
 
@@ -111,7 +107,7 @@ public class AI {
 
         if (level == SEARCH_LEVEL) {
 
-            return bestX + bestY * MainPanel.MASU;
+            return bestX + bestY * MainPanel.MASU_NUM;
         } else {
 
             return value;
@@ -147,8 +143,8 @@ public class AI {
         }
         
 
-        for (int y = 0; y < MainPanel.MASU; y++) {
-            for (int x = 0; x < MainPanel.MASU; x++) {
+        for (int y = 0; y < MainPanel.MASU_NUM; y++) {
+            for (int x = 0; x < MainPanel.MASU_NUM; x++) {
                 if (panel.canPutDown(x, y)) {
                     Undo undo = new Undo(x, y);
 
@@ -177,7 +173,6 @@ public class AI {
 
                         if (childValue < value) {
                             value = childValue;
-                            // ���l���X�V
                             beta = value;
                             bestX = x;
                             bestY = y;
@@ -196,7 +191,7 @@ public class AI {
 
         if (level == SEARCH_LEVEL) {
 
-            return bestX + bestY * MainPanel.MASU;
+            return bestX + bestY * MainPanel.MASU_NUM;
         } else {
 
             return value;
@@ -207,8 +202,8 @@ public class AI {
     private int valueBoard() {
         int value = 0;
         
-        for (int y = 0; y < MainPanel.MASU; y++) {
-            for (int x = 0; x < MainPanel.MASU; x++) {
+        for (int y = 0; y < MainPanel.MASU_NUM; y++) {
+            for (int x = 0; x < MainPanel.MASU_NUM; x++) {
                 value += panel.getBoard(x, y) * valueOfPlace[y][x];
             }
         }
