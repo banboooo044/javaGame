@@ -72,6 +72,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
 
     private Thread timer;
 
+    private Graphics dbg;
+    private Image dbImage = null;
+
 
     public MainPanel(InfoPanel infoPanel) {
         // パネルのサイズを指定
@@ -89,7 +92,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         // AIの初期化
         ai = new AI(this);
 
-
         // メニュー画面を表示
         gameState = START;
 
@@ -97,18 +99,32 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         timer.start();
     }
 
-    public void paintComponent(Graphics g) {
-        super.paintComponent(g);
+    public boolean paint() {
+        boolean retVal = render();
+        paintScreen();
+        return retVal;
+    }
+
+    private boolean render() {
+        if (dbImage == null) {
+            dbImage = createImage(WIDTH, HEIGHT);
+            if (dbImage == null) {
+                System.out.println("dbImage is null");
+                return false;
+            } else {
+                dbg = dbImage.getGraphics();
+            }
+        }
         // 盤面の表示
-        drawBoard(g);
+        drawBoard(dbg);
         switch (gameState) {
-            case START :
+            case START:
                 // 中心に OTHELLO と書く
-                drawTextCentering(g, "OTHELLO");
+                drawTextCentering(dbg, "OTHELLO");
                 break;
             case PLAY :
                 // 石を描く
-                drawStone(g);
+                drawStone(dbg);
 
                 // 盤面の石のそれぞれの個数をカウント
                 Counter counter = countStone();
@@ -120,17 +136,33 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
 
             // 勝ち負け引き分け
             case YOU_WIN :
-                drawStone(g);
-                drawTextCentering(g, "YOU WIN");
+                drawStone(dbg);
+                drawTextCentering(dbg, "YOU WIN");
                 break;
             case YOU_LOSE :
-                drawStone(g);
-                drawTextCentering(g, "YOU LOSE");
+                drawStone(dbg);
+                drawTextCentering(dbg, "YOU LOSE");
                 break;
             case DRAW :
-                drawStone(g);
-                drawTextCentering(g, "DRAW");
+                drawStone(dbg);
+                drawTextCentering(dbg, "DRAW");
                 break;
+        }
+        return true;
+    }
+
+    private void paintScreen() {
+        try {
+            Graphics g = getGraphics();
+            if ((g != null) && (dbImage != null)) {
+                g.drawImage(dbImage, 0, 0, null);
+            }
+            Toolkit.getDefaultToolkit().sync();
+            if (g != null) {
+                g.dispose();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -158,7 +190,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                     // ターンを交代
                     nextTurn();
 
-                    //
                     if (countCanPutDownStone() == 0) {
                         System.out.println("AI PASS!");
                         nextTurn();
@@ -174,7 +205,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 break;
             default:
         }
-        repaint();
+        paint();
     }
 
 
@@ -239,7 +270,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             // 操作回数に1を足す
             putNumber++;
             // 画面の更新
-            update(getGraphics());
+            paint();
             sleep();
         }
     }
@@ -342,7 +373,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             board[y][x] = putStone;
             (undo.pos).push(new Point(x, y));
             if (!tryAndError) {
-                update(getGraphics());
+                paint();
                 sleep();
             }
             x = (x + vecX + MASU_NUM) % MASU_NUM;
@@ -417,7 +448,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             } else {
                 gameState = DRAW;
             }
-            repaint();
+            paint();
             return true;
         }
         return false;
@@ -479,7 +510,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 horizonSlided = (horizonSlided - 1 + MASU_NUM) % MASU_NUM;
                 break;
         }
-        repaint();
+        paint();
 
     }
     @Override
@@ -489,36 +520,35 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     @Override
     public void run() {
         while (true) {
-            if (gameState == PLAY ) {
-                if (timerChange) {
-                    timerChange = false;
-                    if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
-                    else blackStartTime = System.currentTimeMillis() / 1000;
-                }
-                double curTime = System.currentTimeMillis() / 1000;
-                if (isWhiteTurn) {
-                    whiteTimer -= (curTime - whiteStartTime);
-                    infoPanel.setWhiteTime(whiteTimer);
-                    whiteStartTime = curTime;
-                    if (whiteTimer < 0) gameState = YOU_WIN;
-                } else {
-                    blackTimer -= (curTime - blackStartTime);
-                    infoPanel.setBlackTime(blackTimer);
-                    blackStartTime = curTime;
-                    if (blackTimer < 0) gameState = YOU_LOSE;
-                }
+            switch (gameState) {
+                case START:
+                    paint();
+                    break;
+                case PLAY:
+                    if (timerChange) {
+                        timerChange = false;
+                        if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
+                        else blackStartTime = System.currentTimeMillis() / 1000;
+                    }
+                    double curTime = System.currentTimeMillis() / 1000;
+                    if (isWhiteTurn) {
+                        whiteTimer -= (curTime - whiteStartTime);
+                        infoPanel.setWhiteTime(whiteTimer);
+                        whiteStartTime = curTime;
+                        if (whiteTimer < 0) gameState = YOU_WIN;
+                    } else {
+                        blackTimer -= (curTime - blackStartTime);
+                        infoPanel.setBlackTime(blackTimer);
+                        blackStartTime = curTime;
+                        if (blackTimer < 0) gameState = YOU_LOSE;
+                    }
             }
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            repaint();
         }
-    }
 
-    @Override
-    public void update(Graphics g) {
-        paint(g);
     }
 }
