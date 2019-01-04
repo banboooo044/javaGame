@@ -1,9 +1,7 @@
 
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.geom.Arc2D;
 import java.util.Iterator;
-import java.util.Random;
 import javax.swing.*;
 
 public class MainPanel extends JPanel implements MouseListener ,KeyListener , Runnable {
@@ -34,19 +32,25 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
 
     private static final int END_NUMBER = 60;
 
+    public static final int SOLO = 1;
+    public static final int COMP = 2;
+
 
     private static final int START = 0;
     private static final int ROULETTE = 1;
     private static final int PLAY = 2;
-    private static final int YOU_WIN = 3;
-    private static final int YOU_LOSE = 4;
+    private static final int PLAYER1_WIN = 3;
+    private static final int PLAYER2_WIN= 4;
     private static final int DRAW = 5;
 
     private static final int[] dx = { 0 , 1, 0, -1, 1, -1, -1, 1 };
     private static final int[] dy = { 1, 0, -1, 0, 1, -1, 1, -1 };
 
 
-    /** ゲームの状態 ( START / PLAY / YOU_WIN / YOU_LOSE / DRAW */
+    /** ゲームモード ( SOLO / COMP ) */
+    private int gameMode;
+
+    /** ゲームの状態 ( START / PLAY / YOU_WIN / YOU_LOSE / DRAW ) */
     private int gameState;
 
     private boolean finishRoulette;
@@ -82,10 +86,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private Graphics dbg;
     private Image dbImage = null;
 
-    private Random rnd;
+    private int rouletteRnd;
 
 
-    public MainPanel(InfoPanel infoPanel) {
+    public MainPanel(InfoPanel infoPanel,int gameMode,int rouletteRnd) {
         // パネルのサイズを指定
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addMouseListener(this);
@@ -96,13 +100,15 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         // 石の数の結果を表示するクラスのオブジェクト
         this.infoPanel = infoPanel;
 
+        this.gameMode = gameMode;
+        this.rouletteRnd = rouletteRnd;
+
         // 盤面の初期化
         initBoard();
 
         // AIの初期化
         ai = new AI(this);
 
-        rnd = new Random(10);
 
         // メニュー画面を表示
         gameState = START;
@@ -131,12 +137,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         switch (gameState) {
             case START:
                 // 中心に OTHELLO と書く
-                drawTextCentering(dbg, "OTHELLO");
+                if (gameMode == SOLO) drawTextCentering(dbg, "OTHELLO : 1P VS CPU");
+                else if (gameMode == COMP) drawTextCentering(dbg, "OTHELLO : 1P VS 2P");
                 break;
-
             case ROULETTE:
                 Graphics g = getGraphics();
-                rouletteAnimation rn = new rouletteAnimation(g,dbg,WIDTH/4,HEIGHT/4,rnd.nextInt(100));
+                rouletteAnimation rn = new rouletteAnimation(g,dbg,WIDTH/4,HEIGHT/4,rouletteRnd);
                 Thread roolet = new Thread(rn);
                 roolet.start();
                 try {
@@ -168,13 +174,15 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 break;
 
             // 勝ち負け引き分け
-            case YOU_WIN :
+            case PLAYER1_WIN :
                 drawStone(dbg);
-                drawTextCentering(dbg, "YOU WIN");
+                if (gameMode == SOLO) drawTextCentering(dbg, "YOU WIN");
+                else  drawTextCentering(dbg, "PLAYER1 WIN");
                 break;
-            case YOU_LOSE :
+            case PLAYER2_WIN :
                 drawStone(dbg);
-                drawTextCentering(dbg, "YOU LOSE");
+                if (gameMode == SOLO) drawTextCentering(dbg, "YOU LOSE");
+                else  drawTextCentering(dbg, "PLAYER2 WIN");
                 break;
             case DRAW :
                 drawStone(dbg);
@@ -202,7 +210,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         switch (gameState) {
             case START :
                 //ルーレットへ遷移
-                gameState = ROULETTE;
+                if (gameMode == SOLO) gameState = ROULETTE;
+                else if (gameMode == COMP) gameState = PLAY;
                 break;
 
             case ROULETTE:
@@ -230,12 +239,22 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                     // ターンを交代
                     nextTurn();
 
-                    if (countCanPutDownStone() == 0) {
-                        System.out.println("AI PASS!");
-                        nextTurn();
-                        return;
-                    } else {
-                        ai.compute();
+                    if ( gameMode == SOLO ) {
+                        if (countCanPutDownStone() == 0) {
+                            System.out.println("AI PASS!");
+                            nextTurn();
+                            return;
+                        } else {
+                            ai.compute();
+                        }
+                    }
+                    else {
+                        if (countCanPutDownStone() == 0) {
+                            if (isWhiteTurn) System.out.println("2P PASS!");
+                            else System.out.println("1P PASS!");
+                            nextTurn();
+                            return;
+                        }
                     }
                 }
                 break;
@@ -410,7 +429,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         x = (x + vecX + MASU_NUM) % MASU_NUM;
         y = (y + vecY + MASU_NUM) % MASU_NUM;
         while (board[y][x] != putStone) {
-
             board[y][x] = putStone;
             (undo.pos).push(new Point(x, y));
             if (!tryAndError) {
@@ -496,9 +514,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             Counter counter;
             counter = countStone();
             if ( (player == BLACK_STONE && counter.blackCount > 32) || (player == WHITE_STONE && counter.blackCount < 32)){
-                gameState = YOU_WIN;
+                gameState = PLAYER1_WIN;
             } else if ((player == BLACK_STONE && counter.blackCount < 32) || (player == WHITE_STONE && counter.blackCount > 32)) {
-                gameState = YOU_LOSE;
+                gameState = PLAYER2_WIN;
             } else {
                 gameState = DRAW;
             }
@@ -589,12 +607,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                         whiteTimer -= (curTime - whiteStartTime);
                         infoPanel.setWhiteTime(whiteTimer);
                         whiteStartTime = curTime;
-                        if (whiteTimer < 0) gameState = YOU_WIN;
+                        if (whiteTimer < 0) gameState = PLAYER1_WIN;
                     } else {
                         blackTimer -= (curTime - blackStartTime);
                         infoPanel.setBlackTime(blackTimer);
                         blackStartTime = curTime;
-                        if (blackTimer < 0) gameState = YOU_LOSE;
+                        if (blackTimer < 0) gameState = PLAYER2_WIN;
                     }
             }
             try {
@@ -605,4 +623,5 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         }
 
     }
+
 }

@@ -1,21 +1,20 @@
 import java.awt.*;
 import java.awt.geom.Arc2D;
-import java.util.Random;
 
 public class rouletteAnimation implements Runnable {
     private static final int ROULETTE_DIV_NUM = 12;
     private static final double AIR_RESISTANCE = 0.960;
-    private int seed;
+    private int finalPos;
     private double x,y;
     private double velocity = 800.0;
     private int color = 2; // 0 : black , 1 : white
     private Graphics2D g2;
     private Graphics2D dbg;
 
-    public rouletteAnimation (Graphics g,Graphics dbg,double x,double y,int seed) {
+    public rouletteAnimation (Graphics g,Graphics dbg,double x,double y,int finalPos) {
         this.x = x;
         this.y = y;
-        this.seed = seed;
+        this.finalPos = finalPos;
         this.g2 = (Graphics2D) g;
         this.dbg = (Graphics2D) dbg;
     }
@@ -33,11 +32,8 @@ public class rouletteAnimation implements Runnable {
 
     @Override
     public void run() {
-        Random rnd = new Random(seed);
-        int finalPos = rnd.nextInt(360);
         if (finalPos > 270) color = ((630-finalPos) / (360/ROULETTE_DIV_NUM)) % 2;
         else color = ((270-finalPos) / (360/ROULETTE_DIV_NUM)) % 2;
-        System.out.println(finalPos);
         while(velocity > 0.2) {
             drawRoulette(g2,finalPos + velocity);
             velocity *= AIR_RESISTANCE;
