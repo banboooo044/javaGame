@@ -1,7 +1,9 @@
 
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.geom.Arc2D;
 import java.util.Iterator;
+import java.util.Random;
 import javax.swing.*;
 
 public class MainPanel extends JPanel implements MouseListener ,KeyListener , Runnable {
@@ -34,10 +36,11 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
 
 
     private static final int START = 0;
-    private static final int PLAY = 1;
-    private static final int YOU_WIN = 2;
-    private static final int YOU_LOSE = 3;
-    private static final int DRAW = 4;
+    private static final int ROULETTE = 1;
+    private static final int PLAY = 2;
+    private static final int YOU_WIN = 3;
+    private static final int YOU_LOSE = 4;
+    private static final int DRAW = 5;
 
     private static final int[] dx = { 0 , 1, 0, -1, 1, -1, -1, 1 };
     private static final int[] dy = { 1, 0, -1, 0, 1, -1, 1, -1 };
@@ -45,6 +48,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
 
     /** ゲームの状態 ( START / PLAY / YOU_WIN / YOU_LOSE / DRAW */
     private int gameState;
+
+    private boolean finishRoulette;
 
 
     /** 盤面 */
@@ -55,6 +60,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private boolean isWhiteTurn;
 
     private int putNumber;
+
+    private int player;
 
     private int verticleSlide = 0;
     private int horizonSlided = 0;
@@ -75,6 +82,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private Graphics dbg;
     private Image dbImage = null;
 
+    private Random rnd;
+
 
     public MainPanel(InfoPanel infoPanel) {
         // パネルのサイズを指定
@@ -82,6 +91,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         addMouseListener(this);
         setFocusable(true);
         addKeyListener(this);
+
 
         // 石の数の結果を表示するクラスのオブジェクト
         this.infoPanel = infoPanel;
@@ -92,6 +102,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         // AIの初期化
         ai = new AI(this);
 
+        rnd = new Random(10);
+
         // メニュー画面を表示
         gameState = START;
 
@@ -99,18 +111,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         timer.start();
     }
 
-    public boolean paint() {
-        boolean retVal = render();
+    public void paint() {
+        render();
         paintScreen();
-        return retVal;
     }
 
-    private boolean render() {
+    private void render() {
         if (dbImage == null) {
             dbImage = createImage(WIDTH, HEIGHT);
             if (dbImage == null) {
                 System.out.println("dbImage is null");
-                return false;
+                return;
             } else {
                 dbg = dbImage.getGraphics();
             }
@@ -121,6 +132,28 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             case START:
                 // 中心に OTHELLO と書く
                 drawTextCentering(dbg, "OTHELLO");
+                break;
+
+            case ROULETTE:
+                Graphics g = getGraphics();
+                rouletteAnimation rn = new rouletteAnimation(g,dbg,WIDTH/4,HEIGHT/4,rnd.nextInt(100));
+                Thread roolet = new Thread(rn);
+                roolet.start();
+                try {
+                    roolet.join();
+                } catch (InterruptedException e) {}
+
+                finishRoulette = true;
+                String you;
+                if(rn.getColor() == 0) {
+                    you = "BLACK";
+                    player = BLACK_STONE;
+                }
+                else {
+                    you = "WHITE";
+                    player = WHITE_STONE;
+                }
+                drawTextButtom(dbg, "You are " + you);
                 break;
             case PLAY :
                 // 石を描く
@@ -148,7 +181,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 drawTextCentering(dbg, "DRAW");
                 break;
         }
-        return true;
     }
 
     private void paintScreen() {
@@ -169,8 +201,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     public void mouseClicked(MouseEvent e) {
         switch (gameState) {
             case START :
-                // ゲーム開始へ遷移
-                gameState = PLAY;
+                //ルーレットへ遷移
+                gameState = ROULETTE;
+                break;
+
+            case ROULETTE:
+                if (finishRoulette) {
+                    gameState = PLAY;
+                    if (player == WHITE_STONE ) {
+                        ai.compute();
+                    }
+                }
                 break;
             case PLAY :
                 // クリック場所(マス目)を取得
@@ -179,7 +220,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 int y = click.y;
                 // クリックした(x,y)で石を取ることができるか.
                 if (canPutDown(x, y)) { // 石を取れるので石を置く
-
                     Undo undo = new Undo(x, y);
                     // 石を置く
                     putDownStone(x, y, false);
@@ -220,8 +260,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         board[3][4] = board[4][3] = BLACK_STONE;
 
         // 最初は黒のターンから開始
-        isWhiteTurn = false;
         timerChange = true;
+        finishRoulette = false;
+        isWhiteTurn = false;
         putNumber = 0;
     }
 
@@ -433,6 +474,20 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     }
 
     /**
+     * 中心に文字を表示する
+     * @param g グラフィックスオブジェクト
+     * @param s 表示する文字
+     */
+    public void drawTextButtom(Graphics g, String s) {
+        Font f = new Font("SansSerif", Font.BOLD, 40);
+        g.setFont(f);
+        FontMetrics fm = g.getFontMetrics();
+        g.setColor(Color.YELLOW);
+        g.drawString(s, WIDTH / 2 - fm.stringWidth(s) / 2, 4*HEIGHT / 5
+                + fm.getDescent() );
+    }
+
+    /**
      * ゲームの終了判定
      * @return ゲームを終了するか
      */
@@ -440,10 +495,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         if (putNumber == END_NUMBER) {
             Counter counter;
             counter = countStone();
-
-            if (counter.blackCount > 32) {
+            if ( (player == BLACK_STONE && counter.blackCount > 32) || (player == WHITE_STONE && counter.blackCount < 32)){
                 gameState = YOU_WIN;
-            } else if (counter.blackCount < 32) {
+            } else if ((player == BLACK_STONE && counter.blackCount < 32) || (player == WHITE_STONE && counter.blackCount > 32)) {
                 gameState = YOU_LOSE;
             } else {
                 gameState = DRAW;

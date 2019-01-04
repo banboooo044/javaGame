@@ -18,6 +18,15 @@ public class Othello extends JFrame {
         MainPanel mainPanel = new MainPanel(infoPanel);
         contentPane.add(mainPanel, BorderLayout.CENTER);
 
+        JMenuBar menubar = new JMenuBar();
+        JMenu menu = new JMenu("GameMode");
+        menubar.add(menu);
+        JMenuItem menuitem1 = new JMenuItem("1P vs CPU");
+        JMenuItem menuitem2 = new JMenuItem("2P");
+        menu.add(menuitem1);
+        menu.add(menuitem2);
+        setJMenuBar(menubar);
+
         /** フレームサイズを最適化 */
         pack();
     }
