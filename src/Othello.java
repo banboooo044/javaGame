@@ -87,7 +87,7 @@ public class Othello  implements ActionListener {
     }
 
     private void framePack(JFrame frame) {
-        frame.setTitle("Othelo");
+        frame.setTitle("Torus Othelo");
         frame.setVisible(true);
         frame.pack();
     }

@@ -75,6 +75,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private double whiteStartTime = 0.0;
     private double blackStartTime = 0.0;
     private boolean timerChange;
+    private boolean aiFlag = true;
 
 
     private AI ai;
@@ -137,8 +138,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         switch (gameState) {
             case START:
                 // 中心に OTHELLO と書く
-                if (gameMode == SOLO) drawTextCentering(dbg, "OTHELLO : 1P VS CPU");
-                else if (gameMode == COMP) drawTextCentering(dbg, "OTHELLO : 1P VS 2P");
+                if (gameMode == SOLO) drawTextCentering(dbg, "TORUS OTHELLO : 1P VS CPU");
+                else if (gameMode == COMP) drawTextCentering(dbg, "TORUS OTHELLO : 1P VS 2P");
                 break;
             case ROULETTE:
                 Graphics g = getGraphics();
@@ -218,7 +219,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 if (finishRoulette) {
                     gameState = PLAY;
                     if (player == WHITE_STONE ) {
-                        ai.compute();
+                        aiFlag = false;
+                        ai.compute(aiFlag);
                     }
                 }
                 break;
@@ -245,7 +247,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                             nextTurn();
                             return;
                         } else {
-                            ai.compute();
+                            ai.compute(aiFlag);
                         }
                     }
                     else {

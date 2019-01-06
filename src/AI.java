@@ -4,27 +4,14 @@ public class AI {
 
     private MainPanel panel;
 
-    private static final int valueOfPlace[][] = {
-            {120, -20, 20,  5,  5, 20, -20, 120},
-            {-20, -40, -5, -5, -5, -5, -40, -20},
-            { 20,  -5, 15,  3,  3, 15,  -5,  20},
-            {  5,  -5,  3,  3,  3,  3,  -5,   5},
-            {  5,  -5,  3,  3,  3,  3,  -5,   5},
-            { 20,  -5, 15,  3,  3, 15,  -5,  20},
-            {-20, -40, -5, -5, -5, -5, -40, -20},
-            {120, -20, 20,  5,  5, 20, -20, 120}
-    };
-    
-
     public AI(MainPanel panel) {
         this.panel = panel;
     }
 
 
-    public void compute() {
+    public void compute(boolean flag) {
 
-        int temp = alphaBeta(true, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
-        
+        int temp = alphaBeta(flag, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
 
         int x = temp % MainPanel.MASU_NUM;
         int y = temp / MainPanel.MASU_NUM;
@@ -38,7 +25,7 @@ public class AI {
         if (panel.countCanPutDownStone() == 0) {
             System.out.println("Player PASS!");
             panel.nextTurn();
-            compute();
+            compute(flag);
         }
     }
 
@@ -204,7 +191,7 @@ public class AI {
         
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
             for (int x = 0; x < MainPanel.MASU_NUM; x++) {
-                value += panel.getBoard(x, y) * valueOfPlace[y][x];
+                value += panel.getBoard(x, y);
             }
         }
 
