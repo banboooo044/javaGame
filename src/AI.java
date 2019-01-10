@@ -1,39 +1,17 @@
-public class AI  {
+public class AI implements Runnable {
 
     private static final int SEARCH_LEVEL = 7;
 
     private MainPanel panel;
+    private boolean flag;
 
-    public AI(MainPanel panel) {
+    public AI(MainPanel panel,boolean flag) {
         this.panel = panel;
-    }
-
-    public void compute(boolean flag) {
-
-        int temp = alphaBeta(flag, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        int x = temp % MainPanel.MASU_NUM;
-        int y = temp / MainPanel.MASU_NUM;
-
-        Undo undo = new Undo(x, y);
-        panel.canPutDown(x,y);
-        panel.putDownStone(x, y, false);
-        panel.reverse(undo, false);
-        if (panel.endGame()) return;
-        panel.nextTurn();
-        if (panel.countCanPutDownStone() == 0) {
-            System.out.println("Player PASS!");
-            panel.nextTurn();
-            compute(flag);
-        }
+        this.flag = flag;
+        new Thread(this).start();
     }
 
     private int alphaBeta(boolean flag, int level, int alpha, int beta) {
-
         int value;
 
         int childValue;
@@ -64,8 +42,8 @@ public class AI  {
                 if (panel.canPutDown(x, y)) {
                     Undo undo = new Undo(x, y);
 
-                    panel.putDownStone(x, y, true);
-                    panel.reverse(undo,true);
+                    panel.putDownStone(x, y);
+                    panel.reverse(undo);
                     /*
                     if (flag) childValue = -panel.reverse(undo, true);
                     else childValue = panel.reverse(undo, true);
@@ -73,8 +51,6 @@ public class AI  {
                     panel.nextTurn();
 
                     childValue = alphaBeta(!flag, level - 1, alpha, beta);
-
-
                     if (flag) {
 
                         if (childValue > value) {
@@ -109,7 +85,6 @@ public class AI  {
         }
 
         if (level == SEARCH_LEVEL) {
-
             return bestX + bestY * MainPanel.MASU_NUM;
         } else {
 
@@ -137,5 +112,25 @@ public class AI  {
             }
         }
         return value;
+    }
+
+    @Override
+    public void run() {
+        int temp = alphaBeta(flag, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
+        panel.aiRun = false;
+        int x = temp % MainPanel.MASU_NUM;
+        int y = temp / MainPanel.MASU_NUM;
+        Undo undo = new Undo(x, y);
+        panel.canPutDown(x,y);
+        panel.putDownStone(x, y);
+        panel.reverse(undo);
+        if (panel.endGame()) return;
+        panel.nextTurn();
+        if (panel.countCanPutDownStone() == 0) {
+            System.out.println("Player PASS!");
+            panel.nextTurn();
+            panel.aiRun = true;
+            new AI(panel,flag);
+        }
     }
 }

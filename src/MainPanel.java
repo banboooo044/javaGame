@@ -84,7 +84,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     Thread timer;
 
-    AI ai = new AI(this);
+    boolean aiRun;
 
     private Graphics dbg;
     private Image dbImage = null;
@@ -116,6 +116,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         finishRoulette = false;
         isWhiteTurn = false;
         putNumber = 0;
+        aiRun = false;
 
         timer = new Thread(new TimerAnimation(this));
         timer.start();
@@ -212,6 +213,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
     public void mouseClicked(MouseEvent e) {
+        if (aiRun) return;
         switch (gameState) {
             case START :
                 //ルーレットへ遷移
@@ -225,7 +227,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                     paint();
                     if (player == WHITE_STONE ) {
                         aiFlag = false;
-                        ai.compute(aiFlag);
+                        aiRun = true;
+                        new AI(this,aiFlag);
                     }
                 }
                 break;
@@ -238,9 +241,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 if (canPutDown(x, y)) { // 石を取れるので石を置く
                     Undo undo = new Undo(x, y);
                     // 石を置く
-                    putDownStone(x, y, false);
+                    putDownStone(x, y);
                     // 挟んだ石をひっくり返す
-                    reverse(undo, false);
+                    reverse(undo);
                     // ゲームの終了判定
                     endGame();
                     // ターンを交代
@@ -252,7 +255,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                             nextTurn();
                             return;
                         } else {
-                            ai.compute(aiFlag);
+                            aiRun = true;
+                            new AI(this,aiFlag);
                         }
                     }
                     else {
@@ -271,7 +275,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 break;
             default:
         }
-        paint();
+        if (!aiRun) paint();
     }
 
 
@@ -319,7 +323,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
     // クリックした場所をひっくり返す.
-    public void putDownStone(int x, int y, boolean tryAndError) {
+    public void putDownStone(int x, int y) {
         int stone;
         if (isWhiteTurn) {
             stone = WHITE_STONE;
@@ -328,7 +332,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
 
         board[y][x] = stone;
-        if (!tryAndError) {
+        if (!aiRun) {
             // 操作回数に1を足す
             putNumber++;
             // 画面の更新
@@ -416,17 +420,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
 
-    public int reverse(Undo undo, boolean tryAndError) {
+    public int reverse(Undo undo) {
         int openScoreValue = 0;
         for (int i = 0; i < 8 ; i ++) {
             if (okPutDown[i]) {
-                openScoreValue += reverse(undo, dx[i],dy[i],tryAndError);
+                openScoreValue += reverse(undo, dx[i],dy[i]);
             }
         }
         return openScoreValue;
     }
 
-    private int reverse(Undo undo, int vecX, int vecY, boolean tryAndError) {
+    private int reverse(Undo undo, int vecX, int vecY) {
         int putStone;
         int x = undo.x;
         int y = undo.y;
@@ -444,7 +448,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             board[y][x] = putStone;
             openScoreValue += openScore[y][x];
             (undo.pos).push(new Point(x, y));
-            if (!tryAndError) {
+            if (!aiRun) {
                 paint();
                 sleep();
             }
@@ -540,7 +544,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             } else {
                 gameState = DRAW;
             }
-            paint();
+            if (!aiRun) paint();
             return true;
         }
         return false;
@@ -591,6 +595,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
     @Override
     public void keyPressed(KeyEvent e) {
+        if (aiRun) return;
         int key = e.getKeyCode();
         switch (key) {
             case KeyEvent.VK_UP:
