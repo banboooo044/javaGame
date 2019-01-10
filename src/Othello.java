@@ -1,18 +1,19 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
 
 
-public class Othello  implements ActionListener {
-    JFrame menuFrame = new JFrame();
+public class Othello  extends JFrame implements ActionListener {
     ArrayList<JFrame> fr = new ArrayList<JFrame>();
     Random rnd = new Random();
     public Othello() {
-        frameInit(menuFrame);
-        menuFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frameInit(this);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         JPanel panel = new JPanel();
         JButton button1 = new JButton("1P vs CPU");
         JButton button2 = new JButton("2P");
@@ -26,9 +27,9 @@ public class Othello  implements ActionListener {
         button2.addActionListener(this);
         panel.add(button1);
         panel.add(button2);
-        Container contentPane = menuFrame.getContentPane();
+        Container contentPane = this.getContentPane();
         contentPane.add(panel,BorderLayout.CENTER);
-        framePack(menuFrame);
+        framePack(this);
     }
 
     public static void main(String[] args) {
@@ -39,11 +40,12 @@ public class Othello  implements ActionListener {
     public void actionPerformed(ActionEvent e) {
         if (e.getActionCommand() == "1P vs CPU") {
             JFrame frame = new JFrame();
+            //frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
             frameInit(frame);
             /** contentPane を取得 */
             Container contentPane = frame.getContentPane();
-
             /** infoPanel を上部に追加 */
+
             InfoPanel infoPanel = new InfoPanel();
             contentPane.add(infoPanel, BorderLayout.NORTH);
 
@@ -51,12 +53,14 @@ public class Othello  implements ActionListener {
             MainPanel mainPanel = new MainPanel(infoPanel,MainPanel.SOLO,rnd.nextInt(360));
             contentPane.add(mainPanel, BorderLayout.CENTER);
 
+            frame.addWindowListener(new WindowClose(mainPanel));
             framePack(frame);
             fr.add(frame);
         }
         else if (e.getActionCommand() == "2P") {
             JFrame frame = new JFrame();
             frameInit(frame);
+
             /** contentPane を取得 */
             Container contentPane = frame.getContentPane();
 
@@ -68,8 +72,10 @@ public class Othello  implements ActionListener {
             MainPanel mainPanel = new MainPanel(infoPanel,MainPanel.COMP,rnd.nextInt(360));
             contentPane.add(mainPanel, BorderLayout.CENTER);
 
+            frame.addWindowListener(new WindowClose(mainPanel));
             framePack(frame);
             fr.add(frame);
+
         }
     }
 
@@ -91,6 +97,15 @@ public class Othello  implements ActionListener {
         frame.setVisible(true);
         frame.pack();
     }
+}
 
-
+class WindowClose extends WindowAdapter {
+    MainPanel panel;
+    WindowClose(MainPanel panel) {
+        this.panel = panel;
+    }
+    @Override
+    public void windowClosing(WindowEvent windowEvent) {
+        panel.timerEnd = true;
+    }
 }

@@ -1,4 +1,4 @@
-public class AI {
+public class AI  {
 
     private static final int SEARCH_LEVEL = 7;
 
@@ -8,11 +8,14 @@ public class AI {
         this.panel = panel;
     }
 
-
     public void compute(boolean flag) {
 
         int temp = alphaBeta(flag, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
-
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         int x = temp % MainPanel.MASU_NUM;
         int y = temp / MainPanel.MASU_NUM;
 
@@ -29,79 +32,6 @@ public class AI {
         }
     }
 
-
-    private int minMax(boolean flag, int level) {
-
-        int value;
-
-        int childValue;
-
-        int bestX = 0;
-        int bestY = 0;
-
-
-        if (level == 0) {
-            return valueBoard();
-        }
-        
-        if (flag) {
-
-            value = Integer.MIN_VALUE;
-        } else {
-
-            value = Integer.MAX_VALUE;
-        }
-        
-
-        if (panel.countCanPutDownStone() == 0) {
-            return valueBoard();
-        }
-        
-
-        for (int y = 0; y < MainPanel.MASU_NUM; y++) {
-            for (int x = 0; x < MainPanel.MASU_NUM; x++) {
-                if (panel.canPutDown(x, y)) {
-                    Undo undo = new Undo(x, y);
-
-                    panel.putDownStone(x, y, true);
-
-                    panel.reverse(undo, true);
-
-                    panel.nextTurn();
-
-                    childValue = minMax(!flag, level - 1);
-
-                    if (flag) {
-
-                        if (childValue > value) {
-                            value = childValue;
-                            bestX = x;
-                            bestY = y;
-                        }
-                    } else {
-
-                        if (childValue < value) {
-                            value = childValue;
-                            bestX = x;
-                            bestY = y;
-                        }
-                    }
-
-                    panel.undoBoard(undo);
-                }
-            }
-        }
-
-        if (level == SEARCH_LEVEL) {
-
-            return bestX + bestY * MainPanel.MASU_NUM;
-        } else {
-
-            return value;
-        }
-    }
-
-
     private int alphaBeta(boolean flag, int level, int alpha, int beta) {
 
         int value;
@@ -113,7 +43,7 @@ public class AI {
 
 
         if (level == 0) {
-            return valueBoard();
+            return score1();
         }
         
         if (flag) {
@@ -123,10 +53,9 @@ public class AI {
 
             value = Integer.MAX_VALUE;
         }
-        
 
         if (panel.countCanPutDownStone() == 0) {
-            return valueBoard();
+            return score1();
         }
         
 
@@ -136,12 +65,15 @@ public class AI {
                     Undo undo = new Undo(x, y);
 
                     panel.putDownStone(x, y, true);
-
-                    panel.reverse(undo, true);
-
+                    panel.reverse(undo,true);
+                    /*
+                    if (flag) childValue = -panel.reverse(undo, true);
+                    else childValue = panel.reverse(undo, true);
+                    */
                     panel.nextTurn();
 
                     childValue = alphaBeta(!flag, level - 1, alpha, beta);
+
 
                     if (flag) {
 
@@ -186,9 +118,8 @@ public class AI {
     }
     
 
-    private int valueBoard() {
+    private int score1() {
         int value = 0;
-        
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
             for (int x = 0; x < MainPanel.MASU_NUM; x++) {
                 value += panel.getBoard(x, y);
@@ -196,5 +127,15 @@ public class AI {
         }
 
         return -value;
+    }
+
+    private int score2() { //
+        int value = 0;
+        for (int y = 0; y < MainPanel.MASU_NUM; y++) {
+            for (int x = 0; x < MainPanel.MASU_NUM; x++) {
+                if (panel.canPutDown(x,y)) value++;
+            }
+        }
+        return value;
     }
 }

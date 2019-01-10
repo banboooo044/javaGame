@@ -4,7 +4,7 @@ import java.awt.event.*;
 import java.util.Iterator;
 import javax.swing.*;
 
-public class MainPanel extends JPanel implements MouseListener ,KeyListener , Runnable {
+public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     /** マスの大きさ(pixel) */
     private static final int GS = 80;
@@ -54,10 +54,13 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private int gameState;
 
     private boolean finishRoulette;
+    boolean timerEnd = true;
 
 
     /** 盤面 */
     private int[][] board = new int[MASU_NUM][MASU_NUM];
+
+    private int[][] openScore = new int[MASU_NUM][MASU_NUM];
 
     private boolean[] okPutDown = { false,false,false,false,false,false,false,false };
 
@@ -74,15 +77,14 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     private double blackTimer = 500;
     private double whiteStartTime = 0.0;
     private double blackStartTime = 0.0;
-    private boolean timerChange;
+    private boolean timerChange = true;
     private boolean aiFlag = true;
-
-
-    private AI ai;
 
     private InfoPanel infoPanel;
 
-    private Thread timer;
+    Thread timer;
+
+    AI ai = new AI(this);
 
     private Graphics dbg;
     private Image dbImage = null;
@@ -107,15 +109,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         // 盤面の初期化
         initBoard();
 
-        // AIの初期化
-        ai = new AI(this);
-
-
         // メニュー画面を表示
         gameState = START;
+        // 最初は黒のターンから開始
+        timerChange = true;
+        finishRoulette = false;
+        isWhiteTurn = false;
+        putNumber = 0;
 
-        timer = new Thread(this);
+        timer = new Thread(new TimerAnimation(this));
         timer.start();
+        timer.setPriority(Thread.MAX_PRIORITY);
     }
 
     public void paint() {
@@ -218,6 +222,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             case ROULETTE:
                 if (finishRoulette) {
                     gameState = PLAY;
+                    paint();
                     if (player == WHITE_STONE ) {
                         aiFlag = false;
                         ai.compute(aiFlag);
@@ -275,16 +280,11 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         for (int y = 0; y < MASU_NUM; y++) {
             for (int x = 0; x < MASU_NUM; x++) {
                 board[y][x] = BLANK;
+                openScore[y][x] = 8;
             }
         }
         board[3][3] = board[4][4] = WHITE_STONE;
         board[3][4] = board[4][3] = BLACK_STONE;
-
-        // 最初は黒のターンから開始
-        timerChange = true;
-        finishRoulette = false;
-        isWhiteTurn = false;
-        putNumber = 0;
     }
 
     /** マス目を描く */
@@ -334,6 +334,13 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             // 画面の更新
             paint();
             sleep();
+        }
+        else {
+            for (int yi : new int[] { 0 , 1, 0, -1} ) {
+                for (int xi : new int[] { 1, 0, -1, 0} ) {
+                    openScore[(y+yi+MASU_NUM)%MASU_NUM][(x+xi+MASU_NUM)%MASU_NUM] -= 1;
+                }
+            }
         }
     }
 
@@ -409,18 +416,21 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
     }
 
 
-    public void reverse(Undo undo, boolean tryAndError) {
+    public int reverse(Undo undo, boolean tryAndError) {
+        int openScoreValue = 0;
         for (int i = 0; i < 8 ; i ++) {
             if (okPutDown[i]) {
-                reverse(undo, dx[i],dy[i],tryAndError);
+                openScoreValue += reverse(undo, dx[i],dy[i],tryAndError);
             }
         }
+        return openScoreValue;
     }
 
-    private void reverse(Undo undo, int vecX, int vecY, boolean tryAndError) {
+    private int reverse(Undo undo, int vecX, int vecY, boolean tryAndError) {
         int putStone;
         int x = undo.x;
         int y = undo.y;
+        int openScoreValue = 0;
 
         if (isWhiteTurn) {
             putStone = WHITE_STONE;
@@ -432,6 +442,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         y = (y + vecY + MASU_NUM) % MASU_NUM;
         while (board[y][x] != putStone) {
             board[y][x] = putStone;
+            openScoreValue += openScore[y][x];
             (undo.pos).push(new Point(x, y));
             if (!tryAndError) {
                 paint();
@@ -440,6 +451,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             x = (x + vecX + MASU_NUM) % MASU_NUM;
             y = (y + vecY + MASU_NUM) % MASU_NUM;
         }
+        return openScoreValue;
     }
 
     public void undoBoard(Undo undo) {
@@ -449,6 +461,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
             board[cur.y][cur.x] *= -1;
         }
         board[undo.y][undo.x] = BLANK;
+
+        for (int yi : new int[] { 0 , 1, 0, -1} ) {
+            for (int xi : new int[] { 1, 0, -1, 0} ) {
+                openScore[(undo.y+yi+MASU_NUM)%MASU_NUM][(undo.x+xi+MASU_NUM)%MASU_NUM] += 1;
+            }
+        }
         nextTurn();
     }
 
@@ -552,6 +570,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
         return board[y][x];
     }
 
+    public int getOpenScore(int x,int y) {
+        return openScore[y][x];
+    }
+
     @Override
     public void mousePressed(MouseEvent e) {
     }
@@ -585,45 +607,51 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener , Ru
                 break;
         }
         paint();
-
     }
     @Override
     public void keyReleased(KeyEvent keyEvent) {
     }
 
-    @Override
-    public void run() {
-        while (true) {
-            switch (gameState) {
-                case START:
-                    paint();
-                    break;
-                case PLAY:
-                    if (timerChange) {
-                        timerChange = false;
-                        if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
-                        else blackStartTime = System.currentTimeMillis() / 1000;
-                    }
-                    double curTime = System.currentTimeMillis() / 1000;
-                    if (isWhiteTurn) {
-                        whiteTimer -= (curTime - whiteStartTime);
-                        infoPanel.setWhiteTime(whiteTimer);
-                        whiteStartTime = curTime;
-                        if (whiteTimer < 0) gameState = PLAYER1_WIN;
-                    } else {
-                        blackTimer -= (curTime - blackStartTime);
-                        infoPanel.setBlackTime(blackTimer);
-                        blackStartTime = curTime;
-                        if (blackTimer < 0) gameState = PLAYER2_WIN;
-                    }
-            }
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+
+    class TimerAnimation implements Runnable {
+        MainPanel mainPane;
+        TimerAnimation(MainPanel mainPane) {
+            this.mainPane = mainPane;
         }
+        @Override
+        public void run() {
+            timerEnd = false;
+            while (!timerEnd) {
+                switch (gameState) {
+                    case START:
+                        paint();
+                        break;
+                    case PLAY:
+                        if (timerChange) {
+                            timerChange = false;
+                            if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
+                            else blackStartTime = System.currentTimeMillis() / 1000;
+                        }
+                        double curTime = System.currentTimeMillis() / 1000;
+                        if (isWhiteTurn) {
+                            whiteTimer -= (curTime - whiteStartTime);
+                            infoPanel.setWhiteTime(whiteTimer);
+                            whiteStartTime = curTime;
+                            if (whiteTimer < 0) gameState = PLAYER1_WIN;
+                        } else {
+                            blackTimer -= (curTime - blackStartTime);
+                            infoPanel.setBlackTime(blackTimer);
+                            blackStartTime = curTime;
+                            if (blackTimer < 0) gameState = PLAYER2_WIN;
+                        }
+                }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 
+        }
     }
-
 }
