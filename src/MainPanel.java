@@ -10,7 +10,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private static final int GS = 80;
 
     /** マスの数 */
-    public static final int MASU_NUM = 8;
+    static final int MASU_NUM = 8;
 
     /** フレームの横幅 */
     private static final int WIDTH = GS * MASU_NUM;
@@ -18,13 +18,13 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private static final int HEIGHT = WIDTH;
 
     /** 空きマス */
-    private static final int BLANK = 0;
+    static final int BLANK = 0;
 
     /** 黒のマス */
-    private static final int BLACK_STONE = 1;
+    static final int BLACK_STONE = 1;
 
     /** 白のマス */
-    private static final int WHITE_STONE = -1;
+    static final int WHITE_STONE = -1;
 
     /** 休止時間 */
     private static final int SLEEP_TIME = 500;
@@ -43,8 +43,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private static final int PLAYER2_WIN= 4;
     private static final int DRAW = 5;
 
-    private static final int[] dx = { 0 , 1, 0, -1, 1, -1, -1, 1 };
-    private static final int[] dy = { 1, 0, -1, 0, 1, -1, 1, -1 };
+    static final int[] dx = { 0 , 1, 0, -1+MASU_NUM, 1, -1+MASU_NUM, -1+MASU_NUM, 1 };
+    static final int[] dy = { 1, 0, -1+MASU_NUM, 0, 1, -1+MASU_NUM, 1, -1+MASU_NUM };
 
 
     /** ゲームモード ( SOLO / COMP ) */
@@ -60,11 +60,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     /** 盤面 */
     private int[][] board = new int[MASU_NUM][MASU_NUM];
 
-    private int[][] openScore = new int[MASU_NUM][MASU_NUM];
-
     private boolean[] okPutDown = { false,false,false,false,false,false,false,false };
 
-    private boolean isWhiteTurn;
+    boolean isWhiteTurn;
 
     private int putNumber;
 
@@ -238,33 +236,29 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 int x = click.x;
                 int y = click.y;
                 // クリックした(x,y)で石を取ることができるか.
-                if (canPutDown(x, y)) { // 石を取れるので石を置く
+                if (canPutDown(x, y,isWhiteTurn)) { // 石を取れるので石を置く
                     Undo undo = new Undo(x, y);
                     // 石を置く
                     putDownStone(x, y);
                     // 挟んだ石をひっくり返す
                     reverse(undo);
-                    // ゲームの終了判定
-                    endGame();
                     // ターンを交代
                     nextTurn();
 
-                    if ( gameMode == SOLO ) {
+                    if (countCanPutDownStone() == 0) {
+                        nextTurn();
                         if (countCanPutDownStone() == 0) {
-                            System.out.println("AI PASS!");
-                            nextTurn();
+                            endGame();
                             return;
-                        } else {
-                            aiRun = true;
-                            new AI(this,aiFlag);
                         }
+                        if (gameMode == SOLO) System.out.println("AI PASS!");
+                        else if (isWhiteTurn) System.out.println("2P PASS!");
+                        else System.out.println("1P PASS!");
                     }
                     else {
-                        if (countCanPutDownStone() == 0) {
-                            if (isWhiteTurn) System.out.println("2P PASS!");
-                            else System.out.println("1P PASS!");
-                            nextTurn();
-                            return;
+                        if (gameMode == SOLO ) {
+                            aiRun = true;
+                            new AI(this,aiFlag);
                         }
                     }
                 }
@@ -284,7 +278,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         for (int y = 0; y < MASU_NUM; y++) {
             for (int x = 0; x < MASU_NUM; x++) {
                 board[y][x] = BLANK;
-                openScore[y][x] = 8;
             }
         }
         board[3][3] = board[4][4] = WHITE_STONE;
@@ -339,13 +332,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             paint();
             sleep();
         }
-        else {
-            for (int yi : new int[] { 0 , 1, 0, -1} ) {
-                for (int xi : new int[] { 1, 0, -1, 0} ) {
-                    openScore[(y+yi+MASU_NUM)%MASU_NUM][(x+xi+MASU_NUM)%MASU_NUM] -= 1;
-                }
-            }
-        }
     }
 
     /**
@@ -354,7 +340,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
      * @param y 石をおく位置(y座標)
      * @return 石を置けるかどうかの判定
      */
-    public boolean canPutDown(int x, int y) {
+    public boolean canPutDown(int x, int y,boolean white) {
         // マス目外のクリック
         if ( x < 0 || x >= MASU_NUM || y < 0 || y >= MASU_NUM)
             return false;
@@ -367,7 +353,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
         // マスを置けるか判定.
         for ( int i = 0;i < 8;i++ ) {
-            if (canPutDown(x, y, dx[i], dy[i])) {
+            if (canPutDown(x, y, dx[i], dy[i],white)) {
                 canput = true;
                 okPutDown[i] = true;
             }
@@ -386,17 +372,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
      * @param vecY 挟んで取る石の並び(dy)
      * @return 石を置けるかどうかの判定
      */
-    private boolean canPutDown(int x, int y, int vecX, int vecY) {
+    private boolean canPutDown(int x, int y, int vecX, int vecY,boolean white) {
         // 今の操作で置く石の色
         int putStone;
-        if (isWhiteTurn) {
+        if (white) {
             putStone = WHITE_STONE;
         } else {
             putStone = BLACK_STONE;
         }
 
-        x = (x + vecX + MASU_NUM) % MASU_NUM;
-        y = (y + vecY + MASU_NUM) % MASU_NUM;
+        x = (x + vecX ) % MASU_NUM;
+        y = (y + vecY ) % MASU_NUM;
 
         if (board[y][x] == putStone)
             return false;
@@ -404,8 +390,8 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         if (board[y][x] == BLANK)
             return false;
 
-        x = (x + vecX + MASU_NUM) % MASU_NUM;
-        y = (y + vecY + MASU_NUM) % MASU_NUM;
+        x = (x + vecX ) % MASU_NUM;
+        y = (y + vecY ) % MASU_NUM;
 
         while (true) {
             if (board[y][x] == BLANK)
@@ -414,27 +400,23 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             if (board[y][x] == putStone) {
                 return true;
             }
-            x = (x + vecX + MASU_NUM) % MASU_NUM;
-            y = (y + vecY + MASU_NUM) % MASU_NUM;
+            x = (x + vecX ) % MASU_NUM;
+            y = (y + vecY ) % MASU_NUM;
         }
     }
 
-
-    public int reverse(Undo undo) {
-        int openScoreValue = 0;
+    public void reverse(Undo undo) {
         for (int i = 0; i < 8 ; i ++) {
             if (okPutDown[i]) {
-                openScoreValue += reverse(undo, dx[i],dy[i]);
+                reverse(undo, dx[i],dy[i]);
             }
         }
-        return openScoreValue;
     }
 
-    private int reverse(Undo undo, int vecX, int vecY) {
+    private void reverse(Undo undo, int vecX, int vecY) {
         int putStone;
         int x = undo.x;
         int y = undo.y;
-        int openScoreValue = 0;
 
         if (isWhiteTurn) {
             putStone = WHITE_STONE;
@@ -442,20 +424,18 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             putStone = BLACK_STONE;
         }
 
-        x = (x + vecX + MASU_NUM) % MASU_NUM;
-        y = (y + vecY + MASU_NUM) % MASU_NUM;
+        x = (x + vecX ) % MASU_NUM;
+        y = (y + vecY ) % MASU_NUM;
         while (board[y][x] != putStone) {
             board[y][x] = putStone;
-            openScoreValue += openScore[y][x];
             (undo.pos).push(new Point(x, y));
             if (!aiRun) {
                 paint();
                 sleep();
             }
-            x = (x + vecX + MASU_NUM) % MASU_NUM;
-            y = (y + vecY + MASU_NUM) % MASU_NUM;
+            x = (x + vecX ) % MASU_NUM;
+            y = (y + vecY ) % MASU_NUM;
         }
-        return openScoreValue;
     }
 
     public void undoBoard(Undo undo) {
@@ -466,11 +446,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
         board[undo.y][undo.x] = BLANK;
 
-        for (int yi : new int[] { 0 , 1, 0, -1} ) {
-            for (int xi : new int[] { 1, 0, -1, 0} ) {
-                openScore[(undo.y+yi+MASU_NUM)%MASU_NUM][(undo.x+xi+MASU_NUM)%MASU_NUM] += 1;
-            }
-        }
         nextTurn();
     }
 
@@ -485,7 +460,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         int count = 0;
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
             for (int x = 0; x < MainPanel.MASU_NUM; x++) {
-                if (canPutDown(x, y)) {
+                if (canPutDown(x, y,isWhiteTurn)) {
                     count++;
                 }
             }
@@ -533,21 +508,20 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
      * ゲームの終了判定
      * @return ゲームを終了するか
      */
-    public boolean endGame() {
-        if (putNumber == END_NUMBER) {
-            Counter counter;
-            counter = countStone();
-            if ( (player == BLACK_STONE && counter.blackCount > 32) || (player == WHITE_STONE && counter.blackCount < 32)){
-                gameState = PLAYER1_WIN;
-            } else if ((player == BLACK_STONE && counter.blackCount < 32) || (player == WHITE_STONE && counter.blackCount > 32)) {
-                gameState = PLAYER2_WIN;
-            } else {
-                gameState = DRAW;
-            }
-            if (!aiRun) paint();
-            return true;
+    public void endGame() {
+        Counter counter;
+        counter = countStone();
+        if (counter.blackCount < counter.whiteCount) {
+            if (player == BLACK_STONE) gameState = PLAYER2_WIN;
+            else gameState = PLAYER1_WIN;
         }
-        return false;
+        else if (counter.blackCount > counter.whiteCount) {
+            if (player == BLACK_STONE) gameState = PLAYER1_WIN;
+            else gameState = PLAYER2_WIN;
+        } else {
+            gameState = DRAW;
+        }
+        if (!aiRun) paint();
     }
 
     public Counter countStone() {
@@ -564,7 +538,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
     private Point clickPlaceToRotatePlace(Point p) {
-        return new Point((p.x + horizonSlided)%MASU_NUM,(p.y + verticleSlide)%MASU_NUM);
+        return new Point((p.x + horizonSlided + MASU_NUM)%MASU_NUM,(p.y + verticleSlide + MASU_NUM)%MASU_NUM);
     }
     private Point rotatePlaceToclickPlace(Point p) {
         return new Point((p.x - horizonSlided + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
@@ -572,10 +546,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     public int getBoard(int x, int y) {
         return board[y][x];
-    }
-
-    public int getOpenScore(int x,int y) {
-        return openScore[y][x];
     }
 
     @Override
