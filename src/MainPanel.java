@@ -30,10 +30,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private static final int SLEEP_TIME = 500;
 
 
-    private static final int END_NUMBER = 60;
-
     public static final int SOLO = 1;
     public static final int COMP = 2;
+    public static final int COMP_HARD = 3;
 
 
     private static final int START = 0;
@@ -64,15 +63,13 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     boolean isWhiteTurn;
 
-    private int putNumber;
-
     private int player;
 
     private int verticleSlide = 0;
     private int horizonSlided = 0;
 
-    private double whiteTimer = 500;
-    private double blackTimer = 500;
+    private double whiteTimer = 500000;
+    private double blackTimer = 500000;
     private double whiteStartTime = 0.0;
     private double blackStartTime = 0.0;
     private boolean timerChange = true;
@@ -81,6 +78,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private InfoPanel infoPanel;
 
     Thread timer;
+    Thread moveAnime;
 
     boolean aiRun;
 
@@ -94,13 +92,17 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         // パネルのサイズを指定
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addMouseListener(this);
-        setFocusable(true);
-        addKeyListener(this);
-
+        if (gameMode != COMP_HARD) {
+            setFocusable(true);
+            addKeyListener(this);
+        }
+        else {
+            moveAnime = new Thread(new MovingAnimation());
+            moveAnime.start();
+        }
 
         // 石の数の結果を表示するクラスのオブジェクト
         this.infoPanel = infoPanel;
-
         this.gameMode = gameMode;
         this.rouletteRnd = rouletteRnd;
 
@@ -113,12 +115,11 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         timerChange = true;
         finishRoulette = false;
         isWhiteTurn = false;
-        putNumber = 0;
         aiRun = false;
 
         timer = new Thread(new TimerAnimation(this));
         timer.start();
-        timer.setPriority(Thread.MAX_PRIORITY);
+
     }
 
     public void paint() {
@@ -143,6 +144,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 // 中心に OTHELLO と書く
                 if (gameMode == SOLO) drawTextCentering(dbg, "TORUS OTHELLO : 1P VS CPU");
                 else if (gameMode == COMP) drawTextCentering(dbg, "TORUS OTHELLO : 1P VS 2P");
+                else if (gameMode == COMP_HARD) drawTextCentering(dbg,"TORUS OTHELLO 1P VS CPU HARD");
                 break;
             case ROULETTE:
                 Graphics g = getGraphics();
@@ -215,7 +217,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         switch (gameState) {
             case START :
                 //ルーレットへ遷移
-                if (gameMode == SOLO) gameState = ROULETTE;
+                if (gameMode == SOLO || gameMode == COMP_HARD) gameState = ROULETTE;
                 else if (gameMode == COMP) gameState = PLAY;
                 break;
 
@@ -251,12 +253,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                             endGame();
                             return;
                         }
-                        if (gameMode == SOLO) System.out.println("AI PASS!");
+                        if (gameMode == SOLO || gameMode == COMP_HARD) System.out.println("AI PASS!");
                         else if (isWhiteTurn) System.out.println("2P PASS!");
                         else System.out.println("1P PASS!");
                     }
                     else {
-                        if (gameMode == SOLO ) {
+                        if (gameMode == SOLO || gameMode == COMP_HARD) {
                             aiRun = true;
                             new AI(this,aiFlag);
                         }
@@ -326,8 +328,6 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
         board[y][x] = stone;
         if (!aiRun) {
-            // 操作回数に1を足す
-            putNumber++;
             // 画面の更新
             paint();
             sleep();
@@ -540,6 +540,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     private Point clickPlaceToRotatePlace(Point p) {
         return new Point((p.x + horizonSlided + MASU_NUM)%MASU_NUM,(p.y + verticleSlide + MASU_NUM)%MASU_NUM);
     }
+
     private Point rotatePlaceToclickPlace(Point p) {
         return new Point((p.x - horizonSlided + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
     }
@@ -604,18 +605,18 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                     case PLAY:
                         if (timerChange) {
                             timerChange = false;
-                            if (isWhiteTurn) whiteStartTime = System.currentTimeMillis() / 1000;
-                            else blackStartTime = System.currentTimeMillis() / 1000;
+                            if (isWhiteTurn) whiteStartTime = System.currentTimeMillis();
+                            else blackStartTime = System.currentTimeMillis();
                         }
-                        double curTime = System.currentTimeMillis() / 1000;
+                        double curTime = System.currentTimeMillis();
                         if (isWhiteTurn) {
                             whiteTimer -= (curTime - whiteStartTime);
-                            infoPanel.setWhiteTime(whiteTimer);
+                            infoPanel.setWhiteTime((int)whiteTimer/1000);
                             whiteStartTime = curTime;
                             if (whiteTimer < 0) gameState = PLAYER1_WIN;
                         } else {
                             blackTimer -= (curTime - blackStartTime);
-                            infoPanel.setBlackTime(blackTimer);
+                            infoPanel.setBlackTime((int)blackTimer/1000);
                             blackStartTime = curTime;
                             if (blackTimer < 0) gameState = PLAYER2_WIN;
                         }
@@ -626,7 +627,47 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                     e.printStackTrace();
                 }
             }
+        }
+    }
 
+    class MovingAnimation implements Runnable {
+        @Override
+        public void run() {
+            while (true) {
+                if (gameState == PLAY) {
+                    try {
+                        Thread.sleep(1500);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    for (int i = 0; i < MASU_NUM; i++) {
+                        horizonSlided = (horizonSlided - 1 + MASU_NUM) % MASU_NUM;
+                        paint();
+                        try {
+                            Thread.sleep(1500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        if (gameState != PLAY) break;
+                    }
+                    if (gameState != PLAY) break;
+                    for (int i = 0; i < MASU_NUM; i++) {
+                        verticleSlide = (verticleSlide + 1 + MASU_NUM) % MASU_NUM;
+                        paint();
+                        try {
+                            Thread.sleep(1500);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        if (gameState != PLAY) break;
+                    }
+                }
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 }

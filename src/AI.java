@@ -1,6 +1,6 @@
 public class AI implements Runnable {
 
-    private static final int SEARCH_LEVEL = 7;
+    private static final int SEARCH_LEVEL = 5;
 
     private MainPanel panel;
     private boolean isWhite;
