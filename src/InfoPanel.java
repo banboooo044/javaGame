@@ -1,7 +1,6 @@
 import javax.swing.*;
-import javax.swing.plaf.basic.BasicArrowButton;
 
-/** 石の数の結果を表示する */
+/** 石の数と残りの持ち時間を表示する */
 public class InfoPanel extends JPanel {
     /** 黒の石の数 */
     private JLabel blackLabel;
@@ -16,7 +15,7 @@ public class InfoPanel extends JPanel {
     private JLabel whiteTime;
 
     /**
-     * BLACK : 0 , WHITE : 0 でラベルを初期化.
+     * BLACK : 0 , WHITE : 0 , 残り時間は両者500秒でラベルを初期化.
      */
     public InfoPanel() {
         add(new JLabel("BLACK:"));
@@ -49,10 +48,18 @@ public class InfoPanel extends JPanel {
         whiteLabel.setText(count + "");
     }
 
+    /**
+     * 黒の残り時間の表示を変更する.
+     * @param time 残り時間
+     */
     public void setBlackTime(double time) {
         blackTime.setText(time + "");
     }
 
+    /**
+     * 白の残り時間の表示を変更する.
+     * @param time 残り時間
+     */
     public void setWhiteTime(double time) {
         whiteTime.setText(time + "");
     }

@@ -1,16 +1,33 @@
+/**
+ * オセロAI.戦略的に自動で手を打つ.
+ */
 public class AI implements Runnable {
-
-    private static final int SEARCH_LEVEL = 5;
-
+    /** αβ法で先読みする手の数 */
+    private static final int SEARCH_LEVEL = 6;
+    /** ゲームの中心的な処理を行っているパネル */
     private MainPanel panel;
+    /** AIが打つ石の色 */
     private boolean isWhite;
 
+    /**
+     * panelとisWhiteの初期化.探索を開始する.
+     * @param panel ゲームの中心的な処理を行っているパネル
+     * @param isWhite　AIが打つ石の色
+     */
     public AI(MainPanel panel,boolean isWhite) {
         this.panel = panel;
         this.isWhite = isWhite;
         new Thread(this).start();
     }
 
+    /**
+     * αβ法による探索部分
+     * @param isWhite AIが打つ石の色
+     * @param level 現在の探索の深さ(再帰の深さ)
+     * @param alpha アルファ値
+     * @param beta ベータ値
+     * @return 最適な石の置き位置
+     */
     private int alphaBeta(boolean isWhite, int level, int alpha, int beta) {
         int value;
 
@@ -20,8 +37,8 @@ public class AI implements Runnable {
         int bestY = 0;
 
 
-        if (level == 0) {
-            return score1() + score2(isWhite);
+        if (panel.putDownCount < 52 && level == 0) {
+            return score1() + score2() / 2;
         }
         
         if (isWhite) {
@@ -31,7 +48,7 @@ public class AI implements Runnable {
         }
 
         if (panel.countCanPutDownStone() == 0) {
-            return score1() + score2(isWhite);
+            return score1();
         }
         
 
@@ -82,7 +99,7 @@ public class AI implements Runnable {
         }
     }
     
-
+    /** (黒の石数 - 白の石数) の値を返す. */
     private int score1() {
         int value = 0;
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
@@ -92,27 +109,44 @@ public class AI implements Runnable {
         }
         return value;
     }
-
-    private int score2(boolean isWhite) { //
+    /** (黒の着手可能数 - 白の着手可能数) の値を返す. */
+    private int score2() {
         int value = 0;
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
             for (int x = 0; x < MainPanel.MASU_NUM; x++) {
-                if (panel.canPutDown(x,y,isWhite)) value++;
+                // マス目にすでに石がある
+                if (panel.getBoard(x,y) != MainPanel.BLANK)
+                    continue;
+                // マスを置けるか判定.
+                for ( int i = 0;i < 8;i++ ) {
+                    if (panel.canPutDown(x, y, MainPanel.dx[i], MainPanel.dy[i], false)) {
+                        value++;
+                        break;
+                    }
+                }
+                for ( int i = 0;i < 8;i++ ) {
+                    if (panel.canPutDown(x, y, MainPanel.dx[i], MainPanel.dy[i],true)){
+                        value--;
+                        break;
+                    }
+                }
             }
         }
         return value;
     }
 
+
     @Override
     public void run() {
         int temp = alphaBeta(isWhite, SEARCH_LEVEL, Integer.MIN_VALUE, Integer.MAX_VALUE);
-        panel.aiRun = false;
         int x = temp % MainPanel.MASU_NUM;
         int y = temp / MainPanel.MASU_NUM;
         Undo undo = new Undo(x, y);
         panel.canPutDown(x,y,isWhite);
+        panel.aiRun = false;
         panel.putDownStone(x, y);
         panel.reverse(undo);
+        panel.putDownCount++;
         panel.nextTurn();
         if (panel.countCanPutDownStone() == 0) {
             panel.nextTurn();

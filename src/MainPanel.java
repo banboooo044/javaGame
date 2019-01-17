@@ -1,9 +1,11 @@
-
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Iterator;
 import javax.swing.*;
 
+/**
+ * ゲームの中心的な処理を行う
+ */
 public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
     /** マスの大きさ(pixel) */
@@ -17,86 +19,121 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     /** フレームの縦幅 */
     private static final int HEIGHT = WIDTH;
 
-    /** 空きマス */
+    /** 空きマスを表す */
     static final int BLANK = 0;
 
-    /** 黒のマス */
+    /** 黒のマスを表す */
     static final int BLACK_STONE = 1;
 
-    /** 白のマス */
+    /** 白のマスを表す */
     static final int WHITE_STONE = -1;
 
     /** 休止時間 */
     private static final int SLEEP_TIME = 500;
 
 
+    /** ゲームモード ( SOLO / COMP / COMP_HARD) */
+    private int gameMode;
+
+    /** プレイモードが一人用通常モードであることを表す */
     public static final int SOLO = 1;
+    /** プレイモードが二人用モードであることを表す */
     public static final int COMP = 2;
+    /** プレイモードが一人用難しいモードであることを表す */
     public static final int COMP_HARD = 3;
 
 
+    /** 初期状態を表す. **/
     private static final int START = 0;
+    /** ルーレットの表示を行なっている状態を表す*/
     private static final int ROULETTE = 1;
+    /** ゲームをプレイ中である状態を表す */
     private static final int PLAY = 2;
+    /** プレイヤー1が勝利した状態を表す */
     private static final int PLAYER1_WIN = 3;
+    /** プレイヤー2またはコンピュータが勝利した状態を表す */
     private static final int PLAYER2_WIN= 4;
+    /** 引き分けの状態を表す */
     private static final int DRAW = 5;
-
-    static final int[] dx = { 0 , 1, 0, -1+MASU_NUM, 1, -1+MASU_NUM, -1+MASU_NUM, 1 };
-    static final int[] dy = { 1, 0, -1+MASU_NUM, 0, 1, -1+MASU_NUM, 1, -1+MASU_NUM };
-
-
-    /** ゲームモード ( SOLO / COMP ) */
-    private int gameMode;
 
     /** ゲームの状態 ( START / PLAY / YOU_WIN / YOU_LOSE / DRAW ) */
     private int gameState;
 
+    /** ルーレットのアニメーションが終わったかどうかを表す */
     private boolean finishRoulette;
+    /** 別スレッドで動くタイマーアニメーションを停止させるフラグ*/
     boolean timerEnd = true;
+    /** 別スレッドで動く盤面の平行移動アニメーションを停止させるフラグ*/
+    boolean moveAnimeEnd = true;
 
-
-    /** 盤面 */
+    /** 盤面を表す */
     private int[][] board = new int[MASU_NUM][MASU_NUM];
-
+    /** 隣接8マスへの遷移のx座標変化成分 */
+    static final int[] dx = { 0 , 1, 0, -1+MASU_NUM, 1, -1+MASU_NUM, -1+MASU_NUM, 1 };
+    /** 隣接8マスへの遷移のy座標変化成分 */
+    static final int[] dy = { 1, 0, -1+MASU_NUM, 0, 1, -1+MASU_NUM, 1, -1+MASU_NUM };
+    /** 隣接8マスの方向のうち,石が取れる向きはtrueとする */
     private boolean[] okPutDown = { false,false,false,false,false,false,false,false };
-
+    /** 白のターンかを表すフラグ */
     boolean isWhiteTurn;
-
+    /** プレイヤーの色 ( BLACK_STONE / WHITE_STONE ) */
     private int player;
-
+    /** 平行移動している盤面の縦変化成分 */
     private int verticleSlide = 0;
-    private int horizonSlided = 0;
+    /** 平行移動している盤面の横変化成分 */
+    private int horizonSlide = 0;
 
+    /** 白の持ち時間の残り時間 */
     private double whiteTimer = 500000;
+    /** 黒の待ち時間の残り時間 */
     private double blackTimer = 500000;
+    /** 白のターンで直前に計測した時間 */
     private double whiteStartTime = 0.0;
+    /** 黒のターンで直前に計測した時間 */
     private double blackStartTime = 0.0;
+    /** ターンが交代したかどうかのフラグ */
     private boolean timerChange = true;
+    /** AIが何色のターンであるかを表す*/
     private boolean aiFlag = true;
 
-    private InfoPanel infoPanel;
-
-    Thread timer;
-    Thread moveAnime;
-
+    /** コンピュータのターンであるかどうかのフラグ */
     boolean aiRun;
 
+    /** 現在の白黒の石数や,残りの持ち時間の表示を行う */
+    private InfoPanel infoPanel;
+
+    /** タイマーアニメーションを行うためのスレッド */
+    Thread timer;
+    /** 盤面の平行移動アニメーションを行うためのスレッド */
+    Thread moveAnime;
+
+    /** バッファに書き込む用のグラフィクスオブジェクトを格納する */
     private Graphics dbg;
+    /** 描写のバッファ */
     private Image dbImage = null;
 
+    /** ルーレットの乱数 */
     private int rouletteRnd;
+    /** 盤面上の石数の合計 */
+    int putDownCount;
 
-
+    /**
+     * マウス,キーボードを使用可能に設定.盤面やフラグの初期化.
+     * @param infoPanel  現在の白黒の石数や,残りの持ち時間の表示を行う
+     * @param gameMode ゲームモード ( SOLO / COMP / COMP_HARD)
+     * @param rouletteRnd ルーレットの乱数
+     */
     public MainPanel(InfoPanel infoPanel,int gameMode,int rouletteRnd) {
         // パネルのサイズを指定
         setPreferredSize(new Dimension(WIDTH, HEIGHT));
         addMouseListener(this);
         if (gameMode != COMP_HARD) {
+            // 十字キーを使用可能に
             setFocusable(true);
             addKeyListener(this);
         }
         else {
+            // 盤面の平行移動アニメーションをスタート
             moveAnime = new Thread(new MovingAnimation());
             moveAnime.start();
         }
@@ -111,22 +148,31 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
 
         // メニュー画面を表示
         gameState = START;
-        // 最初は黒のターンから開始
+
+        // フラグの初期化
         timerChange = true;
         finishRoulette = false;
         isWhiteTurn = false;
         aiRun = false;
 
-        timer = new Thread(new TimerAnimation(this));
-        timer.start();
+        putDownCount = 0;
 
+        // タイマーのアニメーションをスタート.
+        timer = new Thread(new TimerAnimation());
+        timer.start();
     }
 
+    /**
+     * 画面の更新を行う.
+     */
     public void paint() {
         render();
         paintScreen();
     }
 
+    /**
+     * レンダリングを行う
+     */
     private void render() {
         if (dbImage == null) {
             dbImage = createImage(WIDTH, HEIGHT);
@@ -148,13 +194,18 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 break;
             case ROULETTE:
                 Graphics g = getGraphics();
-                rouletteAnimation rn = new rouletteAnimation(g,dbg,WIDTH/4,HEIGHT/4,rouletteRnd);
-                Thread roolet = new Thread(rn);
-                roolet.start();
-                try {
-                    roolet.join();
-                } catch (InterruptedException e) {}
-
+                rouletteAnimation rn = new rouletteAnimation(g, dbg, WIDTH / 4, HEIGHT / 4, rouletteRnd);
+                if (!finishRoulette) {
+                    Thread roolet = new Thread(rn);
+                    roolet.start();
+                    try {
+                        roolet.join();
+                    } catch (InterruptedException e) {
+                    }
+                }
+                else {
+                    rn.drawRoulette((Graphics2D)dbg,rouletteRnd);
+                }
                 finishRoulette = true;
                 String you;
                 if(rn.getColor() == 0) {
@@ -182,12 +233,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
             // 勝ち負け引き分け
             case PLAYER1_WIN :
                 drawStone(dbg);
-                if (gameMode == SOLO) drawTextCentering(dbg, "YOU WIN");
+                if (gameMode == SOLO || gameMode == COMP_HARD) drawTextCentering(dbg, "YOU WIN");
                 else  drawTextCentering(dbg, "PLAYER1 WIN");
                 break;
             case PLAYER2_WIN :
                 drawStone(dbg);
-                if (gameMode == SOLO) drawTextCentering(dbg, "YOU LOSE");
+                if (gameMode == SOLO || gameMode == COMP_HARD ) drawTextCentering(dbg, "YOU LOSE");
                 else  drawTextCentering(dbg, "PLAYER2 WIN");
                 break;
             case DRAW :
@@ -197,6 +248,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * バッファの内容を画面に表示する.
+     */
     private void paintScreen() {
         try {
             Graphics g = getGraphics();
@@ -212,20 +266,31 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * マウスがクリックされた時のイベント処理.
+     * @param e コンポーネントが定義するアクションが発生したことを示す意味上のイベント
+     */
     public void mouseClicked(MouseEvent e) {
         if (aiRun) return;
         switch (gameState) {
             case START :
-                //ルーレットへ遷移
-                if (gameMode == SOLO || gameMode == COMP_HARD) gameState = ROULETTE;
-                else if (gameMode == COMP) gameState = PLAY;
+                if (gameMode == SOLO || gameMode == COMP_HARD) {
+                    // ルーレットのアニメーションへ
+                    gameState = ROULETTE;
+                }
+                else if (gameMode == COMP) {
+                    // 対戦画面へ
+                    gameState = PLAY;
+                }
                 break;
 
             case ROULETTE:
                 if (finishRoulette) {
+                    // 対戦画面へ
                     gameState = PLAY;
                     paint();
                     if (player == WHITE_STONE ) {
+                        // コンピュータが先手の場合の処理.
                         aiFlag = false;
                         aiRun = true;
                         new AI(this,aiFlag);
@@ -233,6 +298,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 }
                 break;
             case PLAY :
+                if ( gameMode != COMP && ((isWhiteTurn && player == BLACK_STONE) || (!isWhiteTurn && player == WHITE_STONE))) return;
                 // クリック場所(マス目)を取得
                 Point click = clickPlaceToRotatePlace(new Point(e.getX() / GS,e.getY() / GS));
                 int x = click.x;
@@ -244,6 +310,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                     putDownStone(x, y);
                     // 挟んだ石をひっくり返す
                     reverse(undo);
+                    putDownCount++;
                     // ターンを交代
                     nextTurn();
 
@@ -286,7 +353,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         board[3][4] = board[4][3] = BLACK_STONE;
     }
 
-    /** マス目を描く */
+    /** 盤面を描く */
     private void drawBoard(Graphics g) {
         g.setColor(new Color(0, 203, 0));
         g.fillRect(0, 0, WIDTH, HEIGHT);
@@ -338,6 +405,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
      * (x,y) に石を置けるか判定
      * @param x 石をおく位置(x座標)
      * @param y 石をおく位置(y座標)
+     * @param white 何色の石を置くか
      * @return 石を置けるかどうかの判定
      */
     public boolean canPutDown(int x, int y,boolean white) {
@@ -370,9 +438,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
      * @param y 石をおく位置(y座標)
      * @param vecX 挟んで取る石の並び(dx)
      * @param vecY 挟んで取る石の並び(dy)
+     * @param white 何色の石を置くか
      * @return 石を置けるかどうかの判定
      */
-    private boolean canPutDown(int x, int y, int vecX, int vecY,boolean white) {
+    boolean canPutDown(int x, int y, int vecX, int vecY,boolean white) {
         // 今の操作で置く石の色
         int putStone;
         if (white) {
@@ -405,6 +474,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * 直前に置いた石で挟まれた石を反転させる.
+     * @param undo 反転させる石の位置を格納する用のメモリ
+     */
     public void reverse(Undo undo) {
         for (int i = 0; i < 8 ; i ++) {
             if (okPutDown[i]) {
@@ -413,6 +486,12 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * ある一直線上で挟まれた石を反転させる.
+     * @param undo 反転させる石の位置を格納する用のメモリ
+     * @param vecX 対象の直線のX座標変化成分
+     * @param vecY 対象の直線のY座標変化成分
+     */
     private void reverse(Undo undo, int vecX, int vecY) {
         int putStone;
         int x = undo.x;
@@ -438,6 +517,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * 直前の手を打つ前の状態に戻す.
+     * @param undo 直前に置かれた石の位置と反転した石の位置
+     */
     public void undoBoard(Undo undo) {
         Iterator<Point> iter = (undo.pos).iterator();
         while (iter.hasNext()) {
@@ -449,13 +532,18 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         nextTurn();
     }
 
-
+    /**
+     * ターンを交代する処理
+     */
     public void nextTurn() {
         isWhiteTurn = !isWhiteTurn;
         timerChange = true;
     }
 
-
+    /**
+     * 今打つ番のプレイヤーが石を置くことのできる位置数を数える
+     * @return 今打つ番のプレイヤーが石を置くことのできる位置数
+     */
     public int countCanPutDownStone() {
         int count = 0;
         for (int y = 0; y < MainPanel.MASU_NUM; y++) {
@@ -468,6 +556,9 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         return count;
     }
 
+    /**
+     * スレッドをある一定時間スリープさせる
+     */
     private void sleep() {
         try {
             Thread.sleep(SLEEP_TIME);
@@ -491,7 +582,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
     /**
-     * 中心に文字を表示する
+     * 下に文字を表示する
      * @param g グラフィックスオブジェクト
      * @param s 表示する文字
      */
@@ -505,8 +596,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     }
 
     /**
-     * ゲームの終了判定
-     * @return ゲームを終了するか
+     * ゲームの終了処理
      */
     public void endGame() {
         Counter counter;
@@ -524,6 +614,10 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         if (!aiRun) paint();
     }
 
+    /**
+     * 現在の盤面上の黒石と白石の数をそれぞれカウント
+     * @return 盤面上の黒石と白石の数
+     */
     public Counter countStone() {
         Counter counter = new Counter();
         for (int y = 0; y < MASU_NUM; y++) {
@@ -537,14 +631,30 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         return counter;
     }
 
+    /**
+     * 画面上のマス位置を二次元配列上のインデックスに変換する.
+     * @param p 画面上のマス位置
+     * @return 二次元配列上のインデックス
+     */
     private Point clickPlaceToRotatePlace(Point p) {
-        return new Point((p.x + horizonSlided + MASU_NUM)%MASU_NUM,(p.y + verticleSlide + MASU_NUM)%MASU_NUM);
+        return new Point((p.x + horizonSlide + MASU_NUM)%MASU_NUM,(p.y + verticleSlide + MASU_NUM)%MASU_NUM);
     }
 
+    /**
+     * 二次元配列上のインデックスを画面上のマス位置に変換する
+     * @param p 二次元配列上のインデックス
+     * @return 画面上のマス位置
+     */
     private Point rotatePlaceToclickPlace(Point p) {
-        return new Point((p.x - horizonSlided + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
+        return new Point((p.x - horizonSlide + MASU_NUM) % MASU_NUM,(p.y - verticleSlide + MASU_NUM) % MASU_NUM);
     }
 
+    /**
+     * 盤面の状態を取得する
+     * @param x 二次元配列の列番号
+     * @param y 二次元配列の行番号
+     * @return 盤面の状態( BLANK / BLACK_STONE / WHITE_STONE )
+     */
     public int getBoard(int x, int y) {
         return board[y][x];
     }
@@ -565,6 +675,14 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
     public void keyTyped(KeyEvent keyEvent) {
     }
     @Override
+    public void keyReleased(KeyEvent keyEvent) {
+    }
+
+    /**
+     * 十字キーが押された時に,盤面の平行移動を行う処理.
+     * @param e　コンポーネントが定義するアクションが発生したことを示す意味上のイベント
+     */
+    @Override
     public void keyPressed(KeyEvent e) {
         if (aiRun) return;
         int key = e.getKeyCode();
@@ -576,24 +694,19 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                 verticleSlide = (verticleSlide - 1 + MASU_NUM) % MASU_NUM;
                 break;
             case KeyEvent.VK_LEFT:
-                horizonSlided = (horizonSlided + 1 + MASU_NUM) % MASU_NUM;
+                horizonSlide = (horizonSlide + 1 + MASU_NUM) % MASU_NUM;
                 break;
             case KeyEvent.VK_RIGHT:
-                horizonSlided = (horizonSlided - 1 + MASU_NUM) % MASU_NUM;
+                horizonSlide = (horizonSlide - 1 + MASU_NUM) % MASU_NUM;
                 break;
         }
         paint();
     }
-    @Override
-    public void keyReleased(KeyEvent keyEvent) {
-    }
 
-
+    /**
+     * タイマーのアニメーション処理を行う.
+     */
     class TimerAnimation implements Runnable {
-        MainPanel mainPane;
-        TimerAnimation(MainPanel mainPane) {
-            this.mainPane = mainPane;
-        }
         @Override
         public void run() {
             timerEnd = false;
@@ -630,10 +743,14 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
         }
     }
 
+    /**
+     * 盤面の平行アニメーション処理を行う.
+     */
     class MovingAnimation implements Runnable {
         @Override
         public void run() {
-            while (true) {
+            moveAnimeEnd = false;
+            while (!moveAnimeEnd) {
                 if (gameState == PLAY) {
                     try {
                         Thread.sleep(1500);
@@ -641,7 +758,7 @@ public class MainPanel extends JPanel implements MouseListener ,KeyListener {
                         e.printStackTrace();
                     }
                     for (int i = 0; i < MASU_NUM; i++) {
-                        horizonSlided = (horizonSlided - 1 + MASU_NUM) % MASU_NUM;
+                        horizonSlide = (horizonSlide - 1 + MASU_NUM) % MASU_NUM;
                         paint();
                         try {
                             Thread.sleep(1500);

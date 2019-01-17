@@ -7,10 +7,19 @@ import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
 
-
+/**
+ * ゲームモード選択画面の表示.ゲームモード選択フレームにボタン,メニューバー設置.
+ * ゲームモード選択後のフレームの初期化.選択後のフレームにメインパネルを設置.
+ */
 public class Othello  extends JFrame implements ActionListener {
+    /** ゲームモード選択画面用のフレーム */
     ArrayList<JFrame> fr = new ArrayList<JFrame>();
+    /** ルーレット用の乱数ジェネレータ */
     Random rnd = new Random();
+
+    /**
+     * ゲームモード選択画面用のフレームの初期化
+     */
     public Othello() {
         frameInit(this);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -43,6 +52,11 @@ public class Othello  extends JFrame implements ActionListener {
         new Othello();
     }
 
+    /**
+     * ゲームモード選択ボタンを選択後の処理
+     * ゲーム画面用のフレームの設定を行う.
+     * @param e コンポーネントが定義するアクションが発生したことを示す意味上のイベント
+     */
     @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
@@ -81,6 +95,10 @@ public class Othello  extends JFrame implements ActionListener {
         }
     }
 
+    /**
+     * ゲーム画面用のフレームにメニューバーを追加
+     * @param frame 初期化を行う対象のフレーム
+     */
     private void frameInit(JFrame frame) {
         JMenuBar menubar = new JMenuBar();
         JMenu menu = new JMenu("GameMode");
@@ -97,6 +115,10 @@ public class Othello  extends JFrame implements ActionListener {
         frame.setJMenuBar(menubar);
     }
 
+    /**
+     * ゲーム画面用のフレームの設定,
+     * @param frame 初期化を行う対象のフレーム
+     */
     private void framePack(JFrame frame) {
         frame.setTitle("Torus Othelo");
         frame.setVisible(true);
@@ -104,6 +126,9 @@ public class Othello  extends JFrame implements ActionListener {
     }
 }
 
+/**
+ * タイマーと盤面の平行移動アニメーションのを止める処理.
+ */
 class WindowClose extends WindowAdapter {
     MainPanel panel;
     WindowClose(MainPanel panel) {
@@ -112,5 +137,6 @@ class WindowClose extends WindowAdapter {
     @Override
     public void windowClosing(WindowEvent windowEvent) {
         panel.timerEnd = true;
+        panel.moveAnimeEnd = true;
     }
 }
